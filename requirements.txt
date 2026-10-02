@@ -11,6 +11,8 @@ openpyxl
 nbformat
 nbconvert
 ipykernel
+pyarrow
+pytest
 # Pendientes para el fenotipado (ver notebook 01, sección 0)
 # scikit-learn-extra
 # gower

@@ -9,6 +9,7 @@ rutas:
   diccionario: "diccionario_variables_reto2.xlsx"
   figuras: "outputs/figuras"
   tablas: "outputs/tablas"
+  procesados: "datos_procesados"      # tablas limpias (ignorado por git: datos de pacientes)
 
 semilla: 2026
 
@@ -53,3 +54,197 @@ edad_grupos:          # reagrupación de edad_tramo5 (tramos desiguales por prot
   "65-74": ["65-69", "70-74"]
   ">=75": ["75-79", "80-84", "85-89", "90+"]
   # "50-69", "60-69" y "70+" cruzan grupos: quedan como ausentes en la reagrupación
+
+# ---------------------------------------------------------------------------
+# Limpieza (notebook 02, src/limpieza.py). Cada regla está en docs/registro_decisiones.md
+limpieza:
+  codigos_no_disponible: [9999, 99999]   # Virgen del Rocío: "No disponible" -> NaN
+  sexo_no_especificado: 2                # -> NaN
+  tolerancia_duplicado_dias: 30          # misma prueba en dos registros si |Δdías| <= 30
+  margen_no_le_toca_dias: 60             # TENACITY: visita aún no debida si alta + mes + margen > corte
+  dias_por_mes: 30.44
+  # Registro al que se asigna cada paciente compartido (un solo lado de la replicación)
+  asignacion_compartidos:
+    fusionada_lleida: POSTCOVID_LLEIDA   # su seguimiento procede de Lleida
+    enriquecida_vrocio: VIRGEN_DEL_ROCIO
+
+formato_fecha:                           # formato explícito por registro de origen
+  CIBERESUCICOVID: "%Y-%m-%d"
+  POSTCOVID_LLEIDA: "%Y-%m-%d"
+  TENACITY: "%Y-%m-%d"
+  VIRGEN_DEL_ROCIO: "%m/%d/%Y"
+
+rangos_plausibles:                       # fuera de rango -> medida excluida (no borrada)
+  dlco: [20, 160]
+  fvc: [20, 160]
+  fev1: [20, 160]
+  pm6m: [100, 900]                       # < 100 m: 3 valores, probable % del predicho
+  mmrc: [0, 4]
+  hads_a: [0, 21]
+  hads_d: [0, 21]
+
+# Estado clínico por umbral: [clave en umbrales_clinicos, dirección de "alterado"]
+estados:
+  dlco: [dlco_pct, "<"]
+  fvc: [fvc_pct, "<"]
+  fev1: [fev1_pct, "<"]
+  pm6m: [pm6m_metros, "<"]
+  mmrc: [mmrc, ">="]
+  hads_a: [hads, ">="]
+  hads_d: [hads, ">="]
+
+variables_definicion:
+  capa_A: [dlco, fvc]                    # respiratoria, disponible en los 4 registros
+  capa_B_extra: [hads_a, hads_d, mmrc, pm6m]
+  solo_descripcion: [fev1, fibrosis_estricta, fibrosis_amplia, tractos_fibrosos]
+
+# Variables de seguimiento por registro y visita: [visita, columna, columna_fecha, mes_nominal].
+# columna_fecha puede ser una lista: se usa la primera fecha disponible (respaldo).
+# Verificado contra la hoja «Todas las variables» del diccionario.
+variables_visita:
+  dlco:
+    CIBERESUCICOVID:
+      - [M3, M3_followup_dlco, M3_followup_spirometry_date, 3]
+      - [M6, M6_followup_dlco, M6_followup_spirometry_date, 6]
+      - [A1, A1_followup_dlco_3, A1_followup_spirometry_date_3, 12]
+    TENACITY:
+      - [M3, M3_dlco, M3_fecha_pfr, 3]
+      - [M6, M6_dlco, M6_fecha_pfr, 6]
+      - [A1, A1_dlco, A1_fecha_pfr, 12]
+    POSTCOVID_LLEIDA:
+      - [LV1, LV1_dlco_porcentage, LV1_fecha_pfr, 3]
+      - [LV2, LV2_dlco_porcentage, LV2_fecha_pfr, 6]
+      - [LA1, LA1_dlco_porcentage, LA1_fecha_pfr, 12]
+      - [LM18, LM18_dlco_porcentage, LM18_fecha_pfr, 18]
+      - [LM24, LM24_dlco_porcentage, LM24_fecha_pfr, 24]
+      - [LA3, LA3_dlco_porcentage, LA3_fecha_pfr, 36]
+      - [LA4, LA4_dlco_porcentage, LA4_fecha_pfr, 48]
+    VIRGEN_DEL_ROCIO:
+      - [V1, DLCO_porcentaje, Fecha_DLCO, 1]
+      - [V2, DLCO_porc2, FECHA2VISITA, 6]
+  fvc:
+    CIBERESUCICOVID:
+      - [M3, M3_followup_spirometry_fvc, M3_followup_spirometry_date, 3]
+      - [M6, M6_followup_spirometry_fvc, M6_followup_spirometry_date, 6]
+      - [A1, A1_followup_spirometry_fvc_3, A1_followup_spirometry_date_3, 12]
+    TENACITY:
+      - [M3, M3_fvc, M3_fecha_pfr, 3]
+      - [M6, M6_fvc, M6_fecha_pfr, 6]
+      - [A1, A1_fvc, A1_fecha_pfr, 12]
+    POSTCOVID_LLEIDA:
+      - [LV1, LV1_fvc_porcentage, LV1_fecha_pfr, 3]
+      - [LV2, LV2_fvc_porcentage, LV2_fecha_pfr, 6]
+      - [LA1, LA1_fvc_porcentage, LA1_fecha_pfr, 12]
+      - [LM18, LM18_fvc_porcentage, LM18_fecha_pfr, 18]
+      - [LM24, LM24_fvc_porcentage, LM24_fecha_pfr, 24]
+      - [LA3, LA3_fvc_porcentage, LA3_fecha_pfr, 36]
+      - [LA4, LA4_fvc_porcentage, LA4_fecha_pfr, 48]
+    VIRGEN_DEL_ROCIO:
+      - [V1, FVC_r, Fecha_espiro, 1]
+      - [V2, FVC_r2, FECHA2VISITA, 6]
+  fev1:
+    CIBERESUCICOVID:
+      - [M3, M3_followup_spirometry_fev, M3_followup_spirometry_date, 3]
+      - [M6, M6_followup_spirometry_fev, M6_followup_spirometry_date, 6]
+      - [A1, A1_followup_spirometry_fev_3, A1_followup_spirometry_date_3, 12]
+    TENACITY:
+      - [M3, M3_fev, M3_fecha_pfr, 3]
+      - [M6, M6_fev, M6_fecha_pfr, 6]
+      - [A1, A1_fev, A1_fecha_pfr, 12]
+    POSTCOVID_LLEIDA:
+      - [LV1, LV1_fev1_porcentage, LV1_fecha_pfr, 3]
+      - [LV2, LV2_fev1_porcentage, LV2_fecha_pfr, 6]
+      - [LA1, LA1_fev1_porcentage, LA1_fecha_pfr, 12]
+      - [LM18, LM18_fev1_porcentage, LM18_fecha_pfr, 18]
+      - [LM24, LM24_fev1_porcentage, LM24_fecha_pfr, 24]
+      - [LA3, LA3_fev1_porcentage, LA3_fecha_pfr, 36]
+      - [LA4, LA4_fev1_porcentage, LA4_fecha_pfr, 48]
+    VIRGEN_DEL_ROCIO:
+      - [V1, FEV_r, Fecha_espiro, 1]
+      - [V2, FEV_r2, FECHA2VISITA, 6]
+  pm6m:
+    TENACITY:
+      - [M3, M3_distancia_6mwt, [M3_fecha_visita, M3_fecha_pfr], 3]
+      - [M6, M6_distancia_6mwt, [M6_fecha_visita, M6_fecha_pfr], 6]
+      - [A1, A1_distancia_6mwt, [A1_fecha_visita, A1_fecha_pfr], 12]
+    POSTCOVID_LLEIDA:
+      - [LV1, LV1_distancia_6mwt, [LV1_fecha_consulta, LV1_fecha_pfr], 3]
+      - [LV2, LV2_distancia_6mwt, [LV2_fecha_consulta, LV2_fecha_pfr], 6]
+      - [LA1, LA1_distancia_6mwt, [LA1_fecha_consulta, LA1_fecha_pfr], 12]
+      - [LM18, LM18_distancia_6mwt, [LM18_fecha_consulta, LM18_fecha_pfr], 18]
+      - [LM24, LM24_distancia_6mwt, [LM24_fecha_consulta, LM24_fecha_pfr], 24]
+      - [LA3, LA3_distancia_6mwt, [LA3_fecha_consulta, LA3_fecha_pfr], 36]
+      - [LA4, LA4_distancia_6mwt, [LA4_fecha_consulta, LA4_fecha_pfr], 48]
+    VIRGEN_DEL_ROCIO:
+      - [V1, Metrosrecorridos, Fecha_test, 1]
+  mmrc:
+    TENACITY:
+      - [M3, M3_disnea_mmrc, [M3_fecha_visita, M3_fecha_pfr], 3]
+      - [M6, M6_disnea_mmrc, [M6_fecha_visita, M6_fecha_pfr], 6]
+      - [A1, A1_disnea_mmrc, [A1_fecha_visita, A1_fecha_pfr], 12]
+    POSTCOVID_LLEIDA:
+      - [LV1, LV1_disnea_mmrc, [LV1_fecha_consulta, LV1_fecha_pfr], 3]
+      - [LV2, LV2_disnea_mmrc, [LV2_fecha_consulta, LV2_fecha_pfr], 6]
+      - [LA1, LA1_disnea_mmrc, [LA1_fecha_consulta, LA1_fecha_pfr], 12]
+      - [LM18, LM18_disnea_mmrc, [LM18_fecha_consulta, LM18_fecha_pfr], 18]
+      - [LM24, LM24_disnea_mmrc, [LM24_fecha_consulta, LM24_fecha_pfr], 24]
+      - [LA3, LA3_disnea_mmrc, [LA3_fecha_consulta, LA3_fecha_pfr], 36]
+      - [LA4, LA4_disnea_mmrc, [LA4_fecha_consulta, LA4_fecha_pfr], 48]
+    VIRGEN_DEL_ROCIO:
+      - [V1, mMRC1, FECHA1VISITA, 1]
+      - [V2, mMRC2, FECHA2VISITA, 6]
+  hads_a:
+    TENACITY:
+      - [M3, M3_had_a_puntuacion, [M3_fecha_visita, M3_fecha_pfr], 3]
+      - [M6, M6_had_a_puntuacion, [M6_fecha_visita, M6_fecha_pfr], 6]
+      - [A1, A1_had_a_puntuacion, [A1_fecha_visita, A1_fecha_pfr], 12]
+    POSTCOVID_LLEIDA:
+      - [LV1, LV1_had_a_puntuacion, [LV1_fecha_consulta, LV1_fecha_pfr], 3]
+      - [LV2, LV2_had_a_puntuacion, [LV2_fecha_consulta, LV2_fecha_pfr], 6]
+      - [LA1, LA1_had_a_puntuacion, [LA1_fecha_consulta, LA1_fecha_pfr], 12]
+      - [LM18, LM18_had_a_puntuacion, [LM18_fecha_consulta, LM18_fecha_pfr], 18]
+      - [LM24, LM24_had_a_puntuacion, [LM24_fecha_consulta, LM24_fecha_pfr], 24]
+      - [LA3, LA3_had_a_puntuacion, [LA3_fecha_consulta, LA3_fecha_pfr], 36]
+      - [LA4, LA4_had_a_puntuacion, [LA4_fecha_consulta, LA4_fecha_pfr], 48]
+  hads_d:
+    TENACITY:
+      - [M3, M3_had_d_puntuacion, [M3_fecha_visita, M3_fecha_pfr], 3]
+      - [M6, M6_had_d_puntuacion, [M6_fecha_visita, M6_fecha_pfr], 6]
+      - [A1, A1_had_d_puntuacion, [A1_fecha_visita, A1_fecha_pfr], 12]
+    POSTCOVID_LLEIDA:
+      - [LV1, LV1_had_d_puntuacion, [LV1_fecha_consulta, LV1_fecha_pfr], 3]
+      - [LV2, LV2_had_d_puntuacion, [LV2_fecha_consulta, LV2_fecha_pfr], 6]
+      - [LA1, LA1_had_d_puntuacion, [LA1_fecha_consulta, LA1_fecha_pfr], 12]
+      - [LM18, LM18_had_d_puntuacion, [LM18_fecha_consulta, LM18_fecha_pfr], 18]
+      - [LM24, LM24_had_d_puntuacion, [LM24_fecha_consulta, LM24_fecha_pfr], 24]
+      - [LA3, LA3_had_d_puntuacion, [LA3_fecha_consulta, LA3_fecha_pfr], 36]
+      - [LA4, LA4_had_d_puntuacion, [LA4_fecha_consulta, LA4_fecha_pfr], 48]
+
+# Imagen torácica (solo descripción). Formularios de Lleida/TENACITY: [visita, bandera_completo,
+# variable_lesion, columna_fecha, mes]; CIBERESUCICOVID: [visita, tac_hecho, tractos_fibrosos, fecha, mes]
+imagen:
+  fibrosis:
+    TENACITY:
+      - [M3, M3_tacimagen_complete, M3_fibetic_reticular_lesions, M3_fecha_tac, 3]
+      - [M6, M6_tacimagen_complete, M6_fibetic_reticular_lesions, M6_fecha_tac, 6]
+    POSTCOVID_LLEIDA:
+      - [LV1, LV1_tacimagen_complete, LV1_fibetic_reticular_lesions, [LV1_fecha_consulta, LV1_fecha_pfr], 3]
+      - [LV2, LV2_tacimagen_complete, LV2_fibetic_reticular_lesions, [LV2_fecha_consulta, LV2_fecha_pfr], 6]
+      - [LA1, LA1_tacimagen_complete, LA1_fibetic_reticular_lesions, [LA1_fecha_consulta, LA1_fecha_pfr], 12]
+      - [LM18, LM18_tacimagen_complete, LM18_fibetic_reticular_lesions, [LM18_fecha_consulta, LM18_fecha_pfr], 18]
+      - [LM24, LM24_tacimagen_complete, LM24_fibetic_reticular_lesions, [LM24_fecha_consulta, LM24_fecha_pfr], 24]
+      - [LA3, LA3_tacimagen_complete, LA3_fibetic_reticular_lesions, [LA3_fecha_consulta, LA3_fecha_pfr], 36]
+      - [LA4, LA4_tacimagen_complete, LA4_fibetic_reticular_lesions, [LA4_fecha_consulta, LA4_fecha_pfr], 48]
+  formulario_completo: 2
+  codigo_fibrotica: 1
+  codigo_reticular: 2
+  tractos_fibrosos:
+    CIBERESUCICOVID:
+      - [M3, M3_tac_followup, M3_result_tac_followup___3, M3_date_tac_followup, 3]
+      - [M6, M6_tac_followup, M6_result_tac_followup___3, M6_date_tac_followup, 6]
+      - [A1, A1_tac_followup_2, A1_result_tac_followup_2___3, A1_date_tac_followup_2, 12]
+
+visitas_tenacity:                        # [visita, fecha_visita, perdida_seguimiento, mes]
+  - [M3, M3_fecha_visita, M3_perdida_seg, 3]
+  - [M6, M6_fecha_visita, M6_perdida_seg, 6]
+  - [A1, A1_fecha_visita, A1_perdida_seg, 12]
