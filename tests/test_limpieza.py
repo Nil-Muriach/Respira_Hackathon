@@ -79,11 +79,14 @@ def test_tac_incompleto_no_cuenta(cfg):
         "M3_tacimagen_complete": [0], "M3_fibetic_reticular_lesions": [np.nan], "M3_fecha_tac": ["2026-08-01"],
         "M6_tacimagen_complete": [2], "M6_fibetic_reticular_lesions": [2], "M6_fecha_tac": ["2026-11-01"],
     })
-    for registro, fuentes in {**cfg["imagen"]["fibrosis"], **cfg["imagen"]["tractos_fibrosos"]}.items():
-        for _, bandera, var, fecha, _ in fuentes:
-            for c in [bandera, var, *carga.columnas_fecha(fecha)]:
-                if c not in completa:
-                    completa[c] = np.nan
+    hallazgos = cfg["imagen"]["tac_ciberes"]["hallazgos"].values()
+    fuentes = [("fib", *f) for fs in cfg["imagen"]["fibrosis"].values() for f in fs] + \
+              [("tac", *f) for f in cfg["imagen"]["tac_ciberes"]["visitas"]]
+    for tipo, _, bandera, var, fecha, _ in fuentes:
+        vars_ = [f"{var}___{c}" for c in hallazgos] if tipo == "tac" else [var]
+        for c in [bandera, *vars_, *carga.columnas_fecha(fecha)]:
+            if c not in completa:
+                completa[c] = np.nan
     img, _ = limpieza.medidas_imagen(cfg, pac, completa)
     assert set(img["visita"]) == {"M6"}                        # el formulario incompleto de M3 no entra
     fila = img.set_index("variable")["valor"]
@@ -102,6 +105,31 @@ def test_tenacity_no_le_toca(cfg):
     estados = vis.set_index("visita")["estado"]
     assert estados["M3"] == "realizada"
     assert estados["A1"] == "no_le_toca"                      # alta 2026-05 + 12 meses > corte 2026-08
+
+
+def test_resolucion_desconocida_excluida(cfg):
+    pac, _ = limpieza.asignar_cohorte_analisis(_pacientes(), cfg)
+    med = pd.DataFrame([_medida("A", "CIBERESUCICOVID", "resolucion", 3, 90),
+                        _medida("A", "CIBERESUCICOVID", "resolucion", 1, 180, mes=6, visita="M6")])
+    m, _ = limpieza.limpiar_medidas(med, pac, cfg)
+    assert list(m["excluida"]) == [True, False]
+
+
+def test_fatiga_deducida_si_resolucion_total(cfg):
+    pac, _ = limpieza.asignar_cohorte_analisis(_pacientes(), cfg)
+    med = pd.DataFrame([
+        _medida("A", "CIBERESUCICOVID", "resolucion", 0, 90),                       # total, sin fatiga -> deducir 0
+        _medida("A", "CIBERESUCICOVID", "resolucion", 1, 180, mes=6, visita="M6"),  # parcial -> no deducir
+        _medida("B", "CIBERESUCICOVID", "resolucion", 0, 95),
+        _medida("B", "CIBERESUCICOVID", "fatiga", 1, 95),                           # ya existe: no se toca
+        _medida("C", "CIBERESUCICOVID", "resolucion", 3, 90),                       # se desconoce -> no deducir
+    ])
+    m, _ = limpieza.limpiar_medidas(med, pac, cfg)
+    m, entradas = limpieza.deducir_condicionadas(m, cfg)
+    ded = m[m["deducida"]]
+    assert list(zip(ded["subject_id"], ded["visita"], ded["valor"])) == [("A", "M3", 0.0)]
+    assert m[(m["subject_id"] == "B") & (m["variable"] == "fatiga")]["valor"].tolist() == [1]
+    assert entradas[0]["N"] == 1
 
 
 def test_estado_definicion_estructural(cfg):

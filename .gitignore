@@ -2,7 +2,6 @@
 *.csv
 *.parquet
 *.pkl
-!outputs/tablas/*.csv
 datos_procesados/
 
 __pycache__/
