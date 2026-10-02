@@ -1,0 +1,9 @@
+# Datos de pacientes: nunca al repositorio
+*.csv
+*.parquet
+*.pkl
+!outputs/tablas/*.csv
+
+__pycache__/
+.ipynb_checkpoints/
+.venv/

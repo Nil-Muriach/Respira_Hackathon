@@ -1,0 +1,55 @@
+# Parámetros del proyecto Reto 2 — Fenotipado de secuelas post-infecciosas.
+# Todo número que use el código debe salir de aquí.
+
+rutas:
+  # Carpeta con los datos del reto (fuera del repositorio: los datos no se versionan)
+  datos: "../SECUELAS-Challenge/DATOS COVID Y OTROS VIRUS RESPIRATORIOS/bases_reto2"
+  nucleo: "cohorte_unificada_nucleo.csv"
+  completa: "cohorte_unificada.csv"
+  diccionario: "diccionario_variables_reto2.xlsx"
+  figuras: "outputs/figuras"
+  tablas: "outputs/tablas"
+
+semilla: 2026
+
+privacidad:
+  n_minimo_celda: 10          # celdas con N < 10 se suprimen en tablas de salida
+
+registros:                    # orden de presentación y columna de pertenencia
+  CIBERESUCICOVID: en_CIBERESUCICOVID
+  POSTCOVID_LLEIDA: en_POSTCOVID_LLEIDA
+  TENACITY: en_TENACITY
+  VIRGEN_DEL_ROCIO: en_VIRGEN_DEL_ROCIO
+
+colores_registro:
+  CIBERESUCICOVID: "#2a6f97"
+  POSTCOVID_LLEIDA: "#c8553d"
+  TENACITY: "#588b8b"
+  VIRGEN_DEL_ROCIO: "#9b7bb8"
+
+calidad:
+  codigo_desconocido: 9       # 9 = "se desconoce" -> NaN
+  ih_porccmd_principal: 50    # umbral de cumplimentación CIBERESUCICOVID (análisis principal)
+  ih_porccmd_sensibilidad: 99
+  dlco_plausible: [20, 160]   # % predicho; fuera de rango se marca, no se borra en el EDA
+
+tiempo:
+  ventana_definicion_dias: [60, 210]   # estado tras el alta usado para definir fenotipos
+  ventana_comun_meses: 12              # comparación entre cohortes solo hasta aquí
+  ventana_anual_dias: [270, 480]       # medida "al año" para el análisis de abandono
+  cortes_meses: [0, 2, 4, 5, 8, 10, 15, 21, 30, 42, 60]   # tramos para resumir trayectorias
+
+umbrales_clinicos:
+  dlco_pct: 80        # DLCO < 80 % predicho = alterada
+  fvc_pct: 80
+  fev1_pct: 80
+  mmrc: 2             # mMRC >= 2 = disnea relevante
+  hads: 8             # HADS-A / HADS-D >= 8 = caso posible
+  pm6m_metros: 400    # referencia orientativa (sin ajustar por edad/sexo)
+
+edad_grupos:          # reagrupación de edad_tramo5 (tramos desiguales por protección de datos)
+  "<50": ["15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49", "40-49", "<50"]
+  "50-64": ["50-54", "55-59", "60-64"]
+  "65-74": ["65-69", "70-74"]
+  ">=75": ["75-79", "80-84", "85-89", "90+"]
+  # "50-69", "60-69" y "70+" cruzan grupos: quedan como ausentes en la reagrupación
