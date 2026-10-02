@@ -4,7 +4,7 @@
 
 Para poder hacer frente a este reto intentamos enfocarlo de diversas maneras, y se discutieron varios mètodos de trabajo para encontrar poder encontrar un objetivo con el que centrarnos.
 
-### 1.1 Primera idea: predicción precoz de fenotipos y factores de riesgo
+### Primeres idees
 
 Nuestra primera aproximación al reto fue orientada a la **prevención**: en lugar de limitarnos a describir qué grupos de pacientes existen después de una infección vírica grave, queríamos ir un paso más allá e identificar qué factores permiten predecir, lo más pronto posible, cómo va a evolucionar un paciente.
 
@@ -14,7 +14,7 @@ Para explorar esta idea, planteamos un **estudio longitudinal en tres momentos t
 El dataset longitudinal de POSTCOVID-Lleida, con seguimiento de hasta 4 años, actuaría como **cohorte de validación externa**: los fenotipos descubiertos en CIBERESUCICOVID se comprobarían en Lleida para ver si se replicaban y si la evolución observada allí era coherente con lo predicho.
 El criterio de evaluación de los tres modelos sería qué punto temporal permite **antes** identificar correctamente el fenotipo de riesgo del paciente, con el objetivo de que el médico pueda intervenir cuanto antes.
 
-### 1.2 Preparación de datos
+### 2 Preparación de datos
 
 Antes de poder construir ningún modelo, fue necesario realizar una limpieza y preparación exhaustiva de los datasets. Los datos provenían de cuatro registros clínicos distintos (CIBERESUCICOVID, POSTCOVID-Lleida, TENACITY y Virgen del Rocío), cada uno con sus propios formatos, convenciones y momentos de recogida, lo que generaba importantes irregularidades que debían tratarse con criterio clínico.
 Se definieron **13 reglas de limpieza**, documentadas formalmente, cada una con su justificación y la evidencia del análisis exploratorio previo que la motivó. A continuación se describen las más relevantes.
