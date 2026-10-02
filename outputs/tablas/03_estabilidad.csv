@@ -1,0 +1,10 @@
+horizonte,fenotipo,N,Jaccard medio,Jaccard p05,veredicto
+H3,F1,255,0.98,0.94,estable
+H3,F2,362,1.0,1.0,estable
+H3,F3,296,0.98,0.95,estable
+H6,F1,272,1.0,1.0,estable
+H6,F2,289,1.0,0.99,estable
+H6,F3,238,1.0,0.99,estable
+H12,F1,194,0.72,0.41,patrón
+H12,F2,192,0.69,0.44,patrón
+H12,F3,180,0.62,0.3,patrón

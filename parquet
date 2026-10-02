@@ -1,0 +1,7 @@
+import pandas as pd
+
+# 1. Leer el archivo Parquet
+df = pd.read_parquet('../Datos limpios/estado_definicion.parquet')
+
+# 2. Guardar como CSV
+df.to_csv('../Datos limpios/estado_definicion.csv', index=False)

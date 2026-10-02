@@ -118,6 +118,9 @@ def limpiar_medidas(medidas: pd.DataFrame, pacientes: pd.DataFrame, cfg: dict) -
                             m.loc[m["dias_alta"].isna(), "registro"], "medidas"))
     codigos = cfg["limpieza"]["codigos_no_disponible"]
     marcar(m["valor"].isin(codigos), "codigo_no_disponible", "R01", f"Valor {codigos} (no disponible)")
+    for variable, cods in cfg["limpieza"].get("codigos_desconocido_variable", {}).items():
+        marcar((m["variable"] == variable) & m["valor"].isin(cods), "codigo_no_disponible", "R01",
+               f"{variable}: código {cods} (se desconoce)")
     marcar(m["dias_alta"] < 0, "dias_negativos", "R04", "Medida con fecha anterior al alta")
     rangos = cfg["rangos_plausibles"]
     lo = m["variable"].map(lambda v: rangos.get(v, [-np.inf, np.inf])[0])
@@ -157,16 +160,51 @@ def detectar_duplicados(m: pd.DataFrame, pacientes: pd.DataFrame, cfg: dict) -> 
     return m.index.isin(idx), descripcion
 
 
+def deducir_condicionadas(m: pd.DataFrame, cfg: dict) -> tuple[pd.DataFrame, list[dict]]:
+    """R14: preguntas condicionadas. Si el cuaderno solo pregunta `variable` cuando `si` no vale
+    `igual_a` (p. ej., fatiga solo si la resolución no es total), su ausencia en ese caso no es un
+    dato perdido: se añade la medida deducida (`valor`), marcada con `deducida = True`.
+
+    Solo se deduce si no existe ya una medida válida de `variable` en esa visita.
+    """
+    m = m.copy()
+    if "deducida" not in m:
+        m["deducida"] = False
+    entradas, nuevas = [], []
+    for regla in cfg["limpieza"].get("preguntas_condicionadas", []):
+        validas = m[~m["excluida"] & (m["registro"].astype(str) == regla["registro"])]
+        condicion = validas[(validas["variable"] == regla["si"]) & (validas["valor"] == regla["igual_a"])]
+        ya = validas.loc[validas["variable"] == regla["variable"], ["subject_id", "visita"]]
+        clave = ["subject_id", "visita"]
+        faltan = condicion.merge(ya.drop_duplicates(), on=clave, how="left", indicator=True)
+        faltan = faltan[faltan["_merge"] == "left_only"].drop(columns="_merge")
+        faltan = faltan.drop_duplicates(clave)
+        faltan = faltan.assign(variable=regla["variable"], valor=float(regla["valor"]), deducida=True,
+                               fuente_columna=f"deducida de {regla['si']} = {regla['igual_a']}")
+        nuevas.append(faltan[m.columns])
+        entradas.append(entrada("R14", f"{regla['variable']} = {regla['valor']} deducida cuando {regla['si']} = "
+                                       f"{regla['igual_a']} (pregunta condicionada del cuaderno)",
+                                faltan["registro"], "medidas"))
+    if nuevas:
+        m = pd.concat([m, *nuevas], ignore_index=True)
+        m["registro"] = pd.Categorical(m["registro"], categories=list(cfg["registros"]), ordered=True)
+    return m, entradas
+
+
 def medidas_imagen(cfg: dict, pacientes: pd.DataFrame, completa: pd.DataFrame | None = None) -> tuple[pd.DataFrame, list[dict]]:
     """R10: imagen como tabla larga. Solo formularios completos (Lleida/TENACITY) y TAC realizados
-    (CIBERESUCICOVID). Fibrosis estricta = fibrótica; amplia = fibrótica o reticular."""
+    (CIBERESUCICOVID). Fibrosis estricta = fibrótica; amplia = fibrótica o reticular.
+    CIBERESUCICOVID: una variable 0/1 por hallazgo del TAC (casillas `prefijo___código`)."""
     img = cfg["imagen"]
+    hallazgos = img["tac_ciberes"]["hallazgos"]
     fuentes = [("fibrosis", r, *f) for r, fs in img["fibrosis"].items() for f in fs] + \
-              [("tractos", r, *f) for r, fs in img["tractos_fibrosos"].items() for f in fs]
+              [("tac", "CIBERESUCICOVID", *f) for f in img["tac_ciberes"]["visitas"]]
     if completa is None:
-        cols = sorted({c for _, _, _, bandera, var, fecha, _ in fuentes
-                       for c in [bandera, var, *carga.columnas_fecha(fecha)]})
-        completa = carga.cargar_columnas_completa(cfg, cols)
+        cols = set()
+        for tipo, _, _, bandera, var, fecha, _ in fuentes:
+            vars_ = [f"{var}___{c}" for c in hallazgos.values()] if tipo == "tac" else [var]
+            cols |= {bandera, *vars_, *carga.columnas_fecha(fecha)}
+        completa = carga.cargar_columnas_completa(cfg, sorted(cols))
     completa = completa.merge(pacientes[["subject_id", "nu_fecha_alta"]], on="subject_id", how="left")
 
     partes, entradas = [], []
@@ -183,12 +221,12 @@ def medidas_imagen(cfg: dict, pacientes: pd.DataFrame, completa: pd.DataFrame | 
         sub = con_form[valido]
         fecha = carga.fecha_coalescida(sub, carga.columnas_fecha(fecha_cols), cfg["formato_fecha"][registro])
         dias = (fecha - sub["nu_fecha_alta"]).dt.days
-        lesion = sub[var]
         if tipo == "fibrosis":
+            lesion = sub[var]
             valores = {"fibrosis_estricta": (lesion == img["codigo_fibrotica"]).astype(float),
                        "fibrosis_amplia": lesion.isin([img["codigo_fibrotica"], img["codigo_reticular"]]).astype(float)}
         else:
-            valores = {"tractos_fibrosos": lesion.astype(float)}
+            valores = {nombre: sub[f"{var}___{cod}"].astype(float) for nombre, cod in hallazgos.items()}
         for variable, valor in valores.items():
             partes.append(pd.DataFrame({
                 "subject_id": sub["subject_id"].values, "registro": registro, "visita": visita, "mes_nominal": mes,
@@ -217,7 +255,8 @@ def matriz_recogida(cfg: dict) -> pd.DataFrame:
     """R11: variable × registro -> True si el registro recoge la variable (según `variables_visita` e `imagen`)."""
     variables = {v: set(fs) for v, fs in cfg["variables_visita"].items()}
     variables["fibrosis_estricta"] = variables["fibrosis_amplia"] = set(cfg["imagen"]["fibrosis"])
-    variables["tractos_fibrosos"] = set(cfg["imagen"]["tractos_fibrosos"])
+    for hallazgo in cfg["imagen"]["tac_ciberes"]["hallazgos"]:
+        variables[hallazgo] = {"CIBERESUCICOVID"}
     return pd.DataFrame({r: {v: r in regs for v, regs in variables.items()} for r in cfg["registros"]})
 
 
@@ -255,7 +294,7 @@ def estado_definicion(medidas: pd.DataFrame, pacientes: pd.DataFrame, cfg: dict)
     clínico por umbral y su disponibilidad: medida / falta / no_recogida (estructural)."""
     v0, v1 = cfg["tiempo"]["ventana_definicion_dias"]
     defs = cfg["variables_definicion"]
-    variables = defs["capa_A"] + defs["capa_B_extra"] + ["fev1"]
+    variables = defs["capa_A"] + defs["capa_B_extra"] + defs.get("sintomas_ciberes", []) + ["fev1"]
     en_ventana = medidas[~medidas["excluida"] & medidas["variable"].isin(variables)
                          & medidas["dias_alta"].between(v0, v1)]
     primera = en_ventana.sort_values("dias_alta").groupby(["subject_id", "variable"]).first().reset_index()
@@ -325,9 +364,11 @@ def limpiar(cfg: dict) -> dict[str, pd.DataFrame]:
 
     med = carga.medidas_larga(cfg, pac)
     med, e = limpiar_medidas(med, pac, cfg); entradas += e
+    med, e = deducir_condicionadas(med, cfg); entradas += e
     img, e = medidas_imagen(cfg, pac); entradas += e
     img["excluida"] = img["dias_alta"] < 0
     img["motivo_exclusion"] = pd.Series(pd.NA, index=img.index, dtype="string").mask(img["excluida"], "dias_negativos")
+    img["deducida"] = False
     entradas.append(entrada("R04", "Imagen con fecha anterior al alta", img.loc[img["excluida"], "registro"], "medidas"))
     medidas = pd.concat([med, img], ignore_index=True)
     medidas["registro"] = pd.Categorical(medidas["registro"], categories=list(cfg["registros"]), ordered=True)

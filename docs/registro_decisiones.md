@@ -19,6 +19,7 @@ La columna **Validación** la rellena el equipo clínico. La IA propone; el equi
 | R11 | Disponibilidad por paciente y variable: `medida` / `falta` / `no_recogida`. Nunca se imputa lo `no_recogida` | Que una cohorte no recoja una variable no es un dato perdido | §3 | ☐ |
 | R12 | TENACITY: una visita no realizada cuya fecha teórica (alta + mes + 60 días) es posterior al corte es "no le toca", no abandono. Sin visita ni `perdida_seg` = "sin dato" | El reclutamiento sigue abierto. Contarlo como abandono sesgaría la corrección IPW | §8 | ☐ |
 | R13 | Estado de definición: primera medida válida entre 60 y 210 días, con umbrales clínicos (DLCO < 80, FVC < 80, HADS ≥ 8, mMRC ≥ 2, PM6M < 400 orientativo). Capa A = DLCO o FVC. Capa B = además HADS o mMRC. FEV1 solo describe | Ventana común entre registros. Umbrales en lugar de z-scores por cohorte, para no borrar diferencias reales. FEV1 es redundante con FVC (ρ = 0,88) | §6, §7 | ☐ |
+| R14 | Preguntas condicionadas: en CIBERESUCICOVID, si la resolución clínica es **total**, se deduce **fatiga = 0** (medida añadida con `deducida = True`) | El cuaderno solo pregunta por la fatiga si los síntomas no se han resuelto: los 871 pacientes con resolución total a 3 meses tienen la fatiga vacía (100 %). No es imputar, es deducir lo que el cuaderno da por hecho. Sin la regla, Gower comparaba a esos pacientes sin la variable fatiga | Tabla cruzada resolución × fatiga (CIBERESUCICOVID, M3 y M6) | ☐ |
 
 ## Pendientes
 

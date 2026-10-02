@@ -33,21 +33,18 @@ def emparejar_hungaro(a: np.ndarray, b: np.ndarray, k: int) -> tuple[np.ndarray,
     return mapa, jacc
 
 
-def replicar(X_desc: np.ndarray, medoides: np.ndarray, X_rep: np.ndarray, rangos: np.ndarray,
-             pesos: np.ndarray, k: int, n_boot: int, semilla: int) -> dict:
-    """Replicación de un clustering en otra cohorte.
+def replicar(X_desc: np.ndarray, medoides: np.ndarray, X_rep: np.ndarray, rangos: np.ndarray, pesos: np.ndarray,
+             categoricas: np.ndarray, k: int, n_boot: int, semilla: int) -> dict:
+    """Replicación en otra cohorte: transferidas (medoide más cercano) frente a nativas (PAM propio),
+    emparejadas con el algoritmo húngaro; ARI y Jaccard por par con IC bootstrap.
 
-    - Transferidas: cada paciente de la réplica al medoide más cercano del descubrimiento.
-    - Nativas: PAM en la réplica con el mismo k, emparejadas con el algoritmo húngaro.
-    - Concordancia: ARI global y Jaccard por par, con IC bootstrap (reagrupando la réplica).
+    Las columnas que la réplica no recoge están vacías: Gower compara solo las compartidas.
     """
-    D_rep = F.gower(X_rep, None, rangos, pesos)
-    D_med = F.gower(X_rep, X_desc[medoides], rangos, pesos)
-    transferidas = F.asignar_medoides(D_med)
+    D_rep = F.gower(X_rep, None, rangos, pesos, categoricas)
+    transferidas = F.asignar_medoides(F.gower(X_rep, X_desc[medoides], rangos, pesos, categoricas))
     nativas_crudas, _ = F.pam(D_rep, k, semilla)
     mapa, jacc = emparejar_hungaro(transferidas, nativas_crudas, k)
     nativas = mapa[nativas_crudas]
-    ari = adjusted_rand_score(transferidas, nativas)
 
     rng = np.random.default_rng(semilla)
     n = len(X_rep)
@@ -59,18 +56,16 @@ def replicar(X_desc: np.ndarray, medoides: np.ndarray, X_rep: np.ndarray, rangos
         aris.append(adjusted_rand_score(transferidas[idx], m_b[nat_b]))
         jaccs.append(j_b)
     jaccs = np.array(jaccs)
-    return {
-        "transferidas": transferidas, "nativas": nativas, "n": n,
-        "ari": ari, "ari_ic": tuple(np.percentile(aris, [2.5, 97.5])),
-        "jaccard": jacc, "jaccard_ic": np.percentile(jaccs, [2.5, 97.5], axis=0).T,
-    }
+    return {"transferidas": transferidas, "nativas": nativas, "n": n,
+            "ari": adjusted_rand_score(transferidas, nativas), "ari_ic": tuple(np.percentile(aris, [2.5, 97.5])),
+            "jaccard": jacc, "jaccard_ic": np.percentile(jaccs, [2.5, 97.5], axis=0).T}
 
 
 def diferencias_perfil(X_desc: pd.DataFrame, lab_desc: np.ndarray, X_rep: pd.DataFrame,
                        lab_rep: np.ndarray, columnas: list[str], k: int) -> pd.DataFrame:
     """Diferencia estandarizada de medias (réplica − descubrimiento) por clúster y variable.
 
-    |d| < 0,2 despreciable; 0,2–0,5 pequeña; > 0,5 relevante. Lo que debe replicarse es el perfil.
+    |d| < 0,2 despreciable; 0,2–0,5 pequeña; > 0,5 relevante. Debe replicarse el perfil, no el tamaño.
     """
     filas = {}
     for c in range(k):
@@ -81,10 +76,9 @@ def diferencias_perfil(X_desc: pd.DataFrame, lab_desc: np.ndarray, X_rep: pd.Dat
 
 
 def transiciones(et_1: pd.Series, et_2: pd.Series) -> tuple[pd.DataFrame, float, int]:
-    """Matriz de transición (filas: horizonte previo, % por fila) y ARI en los pacientes comunes."""
+    """Tabla de transición (filas: horizonte previo) y ARI en los pacientes comunes."""
     comunes = et_1.index.intersection(et_2.index)
     if len(comunes) == 0:
         return pd.DataFrame(), np.nan, 0
     a, b = et_1.loc[comunes], et_2.loc[comunes]
-    tabla = pd.crosstab(a, b)
-    return tabla, adjusted_rand_score(a, b), len(comunes)
+    return pd.crosstab(a, b), adjusted_rand_score(a, b), len(comunes)

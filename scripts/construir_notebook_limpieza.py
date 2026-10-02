@@ -36,6 +36,7 @@ Principios:
 | R11 | Ausencia estructural (`no_recogida`) frente a `falta` |
 | R12 | TENACITY: abandono frente a "aún no le toca" la visita |
 | R13 | Estado en la ventana de definición (60–210 días) y banderas de inclusión de las capas A y B |
+| R14 | Preguntas condicionadas: fatiga = 0 deducida si la resolución clínica es total (CIBERESUCICOVID) |
 
 > **Privacidad.** Solo se muestran agregados, con supresión de recuentos < 10. Las tablas limpias se guardan en `datos_procesados/`, fuera del control de versiones.
 """)
