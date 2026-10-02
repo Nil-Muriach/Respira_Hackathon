@@ -371,60 +371,8 @@ fenotipado:
     ingreso_binarias: [nu_ingreso_uci, nu_traqueo, nu_hta, nu_diabetes, nu_epoc, nu_card_cronica, nu_renal_cronica]
 
 # ---------------------------------------------------------------------------
-# Fenotipado multidominio (notebook 04): descubrimiento en POSTCOVID-Lleida, comparación con TENACITY y
-# CIBERESUCICOVID. Mismo procedimiento que el notebook 03 (src/fenotipado_perfil.py).
-fenotipado_lleida:
-  titulo: "POSTCOVID-Lleida"
-  descubre: POSTCOVID_LLEIDA
-  replica: [TENACITY, CIBERESUCICOVID]
-  visitas:                               # visita genérica -> tolerancia en días y código en cada cohorte
-    T3: {ventana: [30, 150], POSTCOVID_LLEIDA: LV1, TENACITY: M3, CIBERESUCICOVID: M3}
-    T6: {ventana: [120, 270], POSTCOVID_LLEIDA: LV2, TENACITY: M6, CIBERESUCICOVID: M6}
-    T12: {ventana: [240, 480], POSTCOVID_LLEIDA: LA1, TENACITY: A1, CIBERESUCICOVID: A1}
-  horizontes:
-    H3: [T3]
-    H6: [T3, T6]
-    H12: [T3, T6, T12]
-  dominios:                              # lo que Lleida y TENACITY recogen de forma comparable
-    funcion: [dlco, fvc]
-    esfuerzo: [pm6m]
-    disnea: [mmrc]
-    animo: [hads_a, hads_d]
-  categoricas: []
-  ancla: [[dlco, fvc], [hads_a, hads_d, mmrc]]   # en la última visita, uno de cada grupo (si la cohorte lo recoge)
-  rango_gower:                           # P2,5–P97,5 de Lleida (DLCO y FVC iguales que en el notebook 03)
-    dlco: [40, 110]
-    fvc: [55, 125]
-    pm6m: [220, 580]
-    mmrc: [0, 4]
-    hads_a: [0, 14]
-    hads_d: [0, 14]
-  rango_cambio:                          # cambio último − primero (P2,5–P97,5 de Lleida)
-    dlco: [-20, 30]
-    fvc: [-20, 30]
-    pm6m: [-80, 180]
-    mmrc: [-2, 2]
-    hads_a: [-8, 8]
-    hads_d: [-8, 8]
-  k_rango: [2, 6]
-  k_comparacion: 3
-  n_permutaciones: 100
-  n_bootstrap: 200
-  min_pacientes_centro: 50
-  estabilidad_centros: false             # Lleida es un solo centro
-  descripcion:                           # no definen el fenotipo; cada cohorte usa las que recoge
-    alguna: [reingreso, urgencias, compl_cardiovascular, compl_infecciosa,
-             tac_normalizado, tac_infiltrados, tac_epid, tractos_fibrosos, fibrosis_estricta, fibrosis_amplia]
-    ultima: [fev1, dlco, fvc, fatiga, resolucion, astenia, fatiga_muscular, hads_a, hads_d, mmrc, pm6m]
-    ingreso_binarias: [nu_ingreso_uci, nu_traqueo, nu_hta, nu_diabetes, nu_epoc, nu_card_cronica, nu_renal_cronica]
-  desenlaces:                            # [nombre, variable, visitas, regla]
-    - ["DLCO < 80 % a 12 m", dlco, [T12], ultima]
-    - ["HADS-A ≥ 8 a 12 m", hads_a, [T12], ultima]
-    - ["mMRC ≥ 2 a 12 m", mmrc, [T12], ultima]
-
-# ---------------------------------------------------------------------------
-# Fenotipado común (notebook 05): todas las cohortes juntas con las variables que comparten, como base para
-# el modelo predictivo. Mismo procedimiento (src/fenotipado_perfil.py); validación dejando fuera cada cohorte.
+# Fenotipado común (notebook 04): todas las cohortes juntas con las variables que comparten. Es el fenotipo
+# principal: lo usan las trayectorias (05) y los modelos (06–08). Mismo procedimiento (src/fenotipado_perfil.py); validación dejando fuera cada cohorte.
 fenotipado_comun:
   titulo: "CIBERESUCICOVID + POSTCOVID-Lleida + TENACITY"
   descubre: CIBERESUCICOVID              # solo fija la lista de columnas: las tres cohortes recogen DLCO/FVC/FEV1 en T3, T6 y T12
@@ -467,14 +415,41 @@ fenotipado_comun:
     - ["HADS-A ≥ 8 a 12 m", hads_a, [T12], ultima]
     - ["mMRC ≥ 2 a 12 m", mmrc, [T12], ultima]
     - ["Reingreso hasta 12 m", reingreso, [T3, T6, T12], alguna]
-  predictores_alta:                      # comunes a las tres cohortes (para el modelo futuro; aquí solo se preparan)
+  predictores_alta:                      # comunes a las tres cohortes (los usan los modelos 06–08)
     [grupo_edad, sexo, estancia_hosp_dias, nu_ingreso_uci, nu_hta, nu_diabetes, nu_card_cronica, nu_epoc,
      nu_renal_cronica, nu_tabaquismo]
 
 # ---------------------------------------------------------------------------
-# Modelo predictivo (notebook 06): EBM que predice el fenotipo funcional H3 (notebook 05) desde los datos al alta
+# Trayectorias (notebook 05): evolución de la DLCO según el fenotipo funcional H3 del notebook 04 (src/trayectorias.py)
+trayectorias:
+  fenotipos: fenotipos_comun.parquet     # en rutas.procesados (notebook 04)
+  horizonte: H3                          # fenotipo a 3 meses: F1 función conservada / F2 afectación funcional
+  nombres: {F1: "F1 · función conservada", F2: "F2 · afectación funcional"}
+  cohortes: [CIBERESUCICOVID, POSTCOVID_LLEIDA, TENACITY]   # Virgen del Rocío fuera: mide al mes y casi sin seguimiento
+  variable: dlco                         # variable principal (CLAUDE.md)
+  secundaria: fvc                        # mismo análisis, como apoyo
+  ventana_comun_dias: [30, 480]          # de la visita de ~3 meses a la anual (ventanas T3–T12 del notebook 05): común a las 3 cohortes
+  mes_referencia: 3                      # tiempo = log(meses / 3): el intercepto es el valor a los 3 meses
+  tramos_dias: [30, 150, 270, 480]       # T3, T6 y T12 sin solaparse: solo para medias observadas, N por punto y pesos IPW
+  etiquetas_tramos: [T3, T6, T12]
+  meses_prediccion: [3, 6, 9, 12]
+  efectos_aleatorios: "~lt"              # intercepto y pendiente aleatorios por paciente (si no converge: solo intercepto)
+  ipw:                                   # probabilidad de tener medida en T6 y en T12 dado lo observado a 3 meses
+    covariables: [valor_T3, edad, sexo, estancia_hosp_dias]   # + fenotipo y cohorte (siempre)
+    recorte_percentil: 99                # pesos estabilizados recortados en el P99
+  extension_lleida:                      # más allá del año solo hay Lleida: se presenta aparte, sin extrapolar
+    dias_min: 30
+    meses_prediccion: [3, 6, 12, 18, 24, 36, 48]
+    visitas: [LV1, LV2, LA1, LM18, LM24, LA3, LA4]
+  transiciones:                          # reasignación de cada visita a los medoides H3 (mismos rangos y pesos de Gower)
+    visitas: [T3, T6, T12]
+    visita_extra_lleida: {T24: {ventana: [600, 900], POSTCOVID_LLEIDA: LM24}}
+  criterio_sello: "La diferencia F2 − F1 predicha a 12 meses tiene un IC 95 % que excluye 0 en el modelo conjunto y en cada cohorte grande (CIBERESUCICOVID y Lleida)"
+
+# ---------------------------------------------------------------------------
+# Modelo al alta (notebook 06): EBM que predice el fenotipo funcional H3 (notebook 04) con los datos del alta
 modelo_h3:
-  base: base_modelo.parquet              # en rutas.procesados (generada por el notebook 05)
+  base: base_modelo.parquet              # en rutas.procesados (generada por el notebook 04)
   diana: fenotipo_H3
   clase_positiva: F2                     # F2 = afectación funcional; F1 = función conservada
   predictores:
@@ -491,27 +466,9 @@ modelo_h3:
   n_bins_calibracion: 8
 
 # ---------------------------------------------------------------------------
-# Red neuronal (notebook 07): misma diana, predictores y partición que el notebook 06 (modelo_h3)
-modelo_red:
-  busqueda:                              # GridSearchCV en train (5 pliegues, ROC-AUC)
-    hidden_layer_sizes: [[8], [16], [32], [16, 8], [32, 16], [64, 32]]
-    alpha: [0.0001, 0.001, 0.01, 0.1, 1.0]   # regularización L2
-    learning_rate_init: [0.001, 0.01]
-  pliegues_cv: 5
-  max_iter: 2000
-  early_stopping: true
-  validation_fraction: 0.15
-  n_semillas_ensamble: 10                # media de 10 redes con distintas semillas (reduce la varianza)
-  n_repeticiones_permutacion: 30
-
-# ---------------------------------------------------------------------------
-# Modelo CIBERESUCICOVID (notebook 08): EBM multiclase que predice el fenotipo sintomático H3 del notebook 03
-# (F1 resolución completa / F2 persistente con fatiga / F3 persistente sin fatiga) con datos del alta + fase aguda
+# Predictores de CIBERESUCICOVID (alta + fase aguda) que usa el modelo con fase aguda (notebook 07)
 modelo_ciberes:
-  fenotipos: fenotipos.parquet           # en rutas.procesados (notebook 03): horizonte H3, tipo descubrimiento
-  horizonte: H3
-  nombres_clase: {F1: "Resolución completa", F2: "Persistente con fatiga", F3: "Persistente sin fatiga"}
-  predictores_alta:                      # los mismos 10 del notebook 06 (tabla pacientes)
+  predictores_alta:                      # los mismos 10 del modelo al alta (notebook 06)
     continuas: [edad, estancia_hosp_dias]
     binarias: [sexo, nu_ingreso_uci, nu_hta, nu_diabetes, nu_card_cronica, nu_epoc, nu_renal_cronica]
     categoricas: [nu_tabaquismo]
@@ -539,16 +496,11 @@ modelo_ciberes:
       IU_platelet: ["Plaquetas (×10³/µL)", 10, 1000]
       IU_wbc: ["Leucocitos (×10³/µL)", 0.1, 100]
   codigo_desconocido_agudo: 2
-  test_size: 0.2
-  ebm: {interactions: 5, outer_bags: 14, learning_rate: 0.01, max_rounds: 5000}
-  pliegues_centro: 5                     # validación agrupada por centro (centros no vistos)
-  n_bootstrap_ic: 1000
-  n_bins_calibracion: 6
 
 # ---------------------------------------------------------------------------
-# Modelo CIBERESUCICOVID con dianas funcionales (notebook 09): mismos predictores y limpieza que modelo_ciberes
+# Modelo con fase aguda (notebook 07): solo CIBERESUCICOVID, predictores de modelo_ciberes, dianas funcionales
 modelo_ciberes_funcional:
-  base: base_modelo.parquet              # notebook 05: fenotipo_H3 y y_dlco
+  base: base_modelo.parquet              # notebook 04: fenotipo_H3 y y_dlco
   dianas:                                # [clave, columna, clase positiva, descripción]
     - [fenotipo_h3, fenotipo_H3, F2, "Fenotipo funcional a 3 meses: afectación funcional (F2) frente a función conservada (F1)"]
     - [dlco_12m, y_dlco, 1, "DLCO < 80 % del predicho a 12 meses"]
@@ -558,3 +510,17 @@ modelo_ciberes_funcional:
   pliegues_centro: 5
   n_bootstrap_ic: 1000
   n_bins_calibracion: 8
+
+# ---------------------------------------------------------------------------
+# Modelo de la primera visita (notebook 08): entre los pacientes con DLCO < 80 % a 3 meses, ¿quién sigue alterado al año?
+primera_visita:
+  bandas_dlco: [0, 60, 70, 80]          # tramos de DLCO a 3 m (% predicho) entre los alterados
+  arbol_profundidad: 3                  # CLAUDE.md: árbol de profundidad ≤ 3
+  arbol_min_hoja: 20                    # hojas de ≥ 20 pacientes (estables y por encima de N_MIN)
+  l1_Cs: 20                             # rejilla de regularización de la logística L1
+  pliegues_internos: 5                  # validación cruzada interna (solo en las cohortes de entrenamiento)
+  n_bootstrap: 1000                     # IC 95 % de AUC y ΔAUC
+  n_bins_calibracion: 5
+  umbrales_dca: [0.20, 0.90, 0.01]      # umbrales de probabilidad para la curva de decisión
+  dca_margen_minimo: 0.01               # ventaja mínima de beneficio neto que se considera útil (1 de cada 100)
+  ventana_anual_estricta: [300, 420]    # sensibilidad: visita anual entre 10 y 14 meses

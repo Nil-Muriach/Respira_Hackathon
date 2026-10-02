@@ -1,6 +1,6 @@
-# Datasets limpios
+# Datos limpios
 
-Salida de la limpieza de datos (notebook `02_limpieza.ipynb`, reglas R01–R13). Son 6 ficheros `.parquet` en `../Datos limpios/`. Contienen datos de pacientes seudonimizados: **no se suben a git ni salen del entorno**. Solo salen agregados (ver las tablas de `../Tablas/`).
+Salida de la limpieza de datos (notebook `02_limpieza.ipynb`, reglas R01–R14; cada regla está justificada en `registro_decisiones.md`). Son 6 ficheros `.parquet` en `../Datos limpios/`. Contienen datos de pacientes seudonimizados: **no se suben a git ni salen del entorno**. Solo salen agregados (tablas de `outputs/tablas/`).
 
 ```python
 import pandas as pd
@@ -14,10 +14,10 @@ capa_A = estado[estado.subject_id.isin(pacientes.loc[pacientes.incluible_A, "sub
 | Dataset | Filas | Una fila es… | Para qué sirve |
 |---|---|---|---|
 | `pacientes` | 9.809 | un paciente | Población, descripción y criterios de inclusión |
-| `medidas` | 27.504 | una medida (paciente × visita × variable) | Trayectorias y modelos mixtos |
+| `medidas` | 86.810 | una medida (paciente × visita × variable) | Fenotipado, trayectorias y modelos |
 | `estado_definicion` | 9.809 | un paciente | **Entrada del clustering** (fenotipos) |
 | `visitas_tenacity` | 861 | una visita prevista de TENACITY (287 × 3) | Abandono frente a "aún no le toca" |
-| `registro_limpieza` | 31 | una regla aplicada | Trazabilidad: qué se limpió y a cuántos casos afectó |
+| `registro_limpieza` | 33 | una regla aplicada | Trazabilidad: qué se limpió y a cuántos casos afectó |
 | `flujo_consort` | 7 | un paso del flujo de pacientes | Cuántos pacientes llegan a cada capa |
 
 ## `pacientes`
@@ -51,11 +51,12 @@ Tabla larga con todas las medidas de seguimiento. Las medidas descartadas **no s
 | `registro` | Registro **de origen de la medida** (distinto de `cohorte_analisis` en los pacientes compartidos) |
 | `cohorte_analisis` | Registro de análisis del paciente |
 | `visita`, `mes_nominal` | Visita (`M3`, `LV1`, …) y su mes nominal. El eje temporal real es `dias_alta` |
-| `variable` | `dlco`, `fvc`, `fev1`, `pm6m`, `mmrc`, `hads_a`, `hads_d` (valores) y `fibrosis_estricta`, `fibrosis_amplia`, `tractos_fibrosos` (0/1) |
+| `variable` | Función y esfuerzo: `dlco`, `fvc`, `fev1`, `pm6m`. Síntomas y ánimo: `mmrc`, `hads_a`, `hads_d`, `fatiga`, `resolucion`, `astenia`, `fatiga_muscular`. Eventos: `reingreso`, `urgencias`, `compl_cardiovascular`, `compl_infecciosa`. Imagen (0/1): `fibrosis_estricta`, `fibrosis_amplia`, `tac_normalizado`, `tac_infiltrados`, `tac_epid`, `tractos_fibrosos` |
 | `valor` | Valor de la medida (% del predicho, metros, puntuación o 0/1 en imagen) |
-| `dias_alta`, `meses_alta` | Fecha de la prueba menos fecha de alta. Si falta la fecha, se usa `visita_dias` solo en la primera visita (`fecha_imputada = True`). Hay 334 medidas válidas sin tiempo: no entran en ninguna ventana temporal |
+| `dias_alta`, `meses_alta` | Fecha de la prueba menos fecha de alta. Si falta la fecha, se usa `visita_dias` solo en la primera visita (`fecha_imputada = True`). Hay 20.409 medidas sin fecha (sobre todo síntomas y eventos de CIBERESUCICOVID): el fenotipado las asigna por visita, pero no entran en las trayectorias |
 | `fuente_columna` | Columna de la tabla completa de la que sale el valor |
 | `excluida`, `motivo_exclusion` | `dias_negativos`, `fuera_de_rango`, `duplicado_entre_registros` o `codigo_no_disponible` |
+| `deducida` | Medida deducida de una pregunta condicionada (R14: resolución total → fatiga = 0), no medida directamente |
 
 Las variables de imagen son **solo descriptivas**: la fibrosis estricta/amplia solo cuenta formularios de TAC completos, y "tractos fibrosos" (CIBERESUCICOVID) no es el mismo constructo, así que no se compara entre cohortes.
 
@@ -90,7 +91,7 @@ La fecha de corte (última visita registrada) está en `visitas_tenacity.attrs["
 
 ## `registro_limpieza`
 
-Una fila por regla aplicada: `regla` (R01–R13), `descripcion`, `tabla` afectada y `N` casos, en total y por registro (`N_CIBERESUCICOVID`, `N_POSTCOVID_LLEIDA`, …). Es la versión completa; la versión con recuentos < 10 suprimidos está en `../Tablas/02_registro_limpieza.csv`.
+Una fila por regla aplicada: `regla` (R01–R14), `descripcion`, `tabla` afectada y `N` casos, en total y por registro (`N_CIBERESUCICOVID`, `N_POSTCOVID_LLEIDA`, …). Es la versión completa; la versión con recuentos < 10 suprimidos está en `outputs/tablas/02_registro_limpieza.csv`.
 
 ## `flujo_consort`
 
@@ -102,22 +103,28 @@ Flujo de pacientes por `cohorte_analisis` (cada paso exige los anteriores). El �
 | 2. Supervivientes al alta | 7.576 |
 | 3. Sin inconsistencias | 7.576 |
 | 4. Cumplimentación suficiente (CMD ≥ 50 en CIBERESUCICOVID) | 5.071 |
-| 5. Con alguna medida de seguimiento válida | 2.751 |
+| 5. Con alguna medida de seguimiento válida | 4.494 |
 | 6. Capa A: DLCO o FVC en la ventana | 2.114 |
 | 7. Capa B: además HADS o mMRC | 710 |
 
 La capa A se reparte en 1.352 (CIBERESUCICOVID), 556 (Lleida), 159 (TENACITY) y 47 (Virgen del Rocío). La capa B tiene 532 de Lleida, 155 de TENACITY y 23 de Virgen del Rocío; CIBERESUCICOVID no aporta porque no recoge HADS ni mMRC.
 
-## Tablas (`../Tablas/`)
+## Ficheros que generan los notebooks siguientes
 
-Agregados con recuentos < 10 suprimidos, aptos para compartir:
+También en `../Datos limpios/`, fuera del repositorio:
 
-| Fichero | Contenido |
-|---|---|
-| `02_registro_limpieza.csv` | Reglas aplicadas y casos afectados |
-| `02_flujo_consort.csv` | Flujo de pacientes por registro |
-| `07_funcion_pulmonar_primera_visita.csv` | DLCO, FVC y FEV1 en la primera visita por registro (análisis exploratorio) |
-| `11_indicadores_clave.csv` | Cifras clave del análisis exploratorio |
+| Fichero | Lo genera | Contenido |
+|---|---|---|
+| `fenotipos.parquet` | 03 | Fenotipos de CIBERESUCICOVID (síntomas + función) por horizonte |
+| `fenotipos_comun.parquet` | 04 (y `main`) | Fenotipo de cada paciente en H3, H6 y H12 (clustering de las tres cohortes) |
+| `base_modelo.parquet` | 04 (y `main`) | Fenotipos, desenlaces a 12 meses y predictores del alta: base de los modelos 06 y 07 |
+| `dataset_modelo_h3.parquet`, `modelo_ebm_h3.pkl` | 06 | Dataset y modelo al alta |
+| `dataset_modelo_ciberes_funcional.parquet`, `modelos_ebm_ciberes_funcional.pkl` | 07 | Dataset y modelos con fase aguda |
+| `dataset_modelo_primera_visita.parquet`, `modelo_primera_visita.pkl` | 08 | Dataset y modelo de la primera visita (incluye la tabla de bolsillo) |
+
+## Tablas agregadas (`outputs/tablas/`)
+
+Agregados con recuentos < 10 suprimidos, aptos para compartir. El prefijo es el número del notebook que las genera; por ejemplo, `02_registro_limpieza.csv` (reglas aplicadas y casos afectados) y `02_flujo_consort.csv` (flujo de pacientes por registro).
 
 ## Pendiente de validación clínica
 

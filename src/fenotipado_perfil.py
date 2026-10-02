@@ -1,7 +1,7 @@
-"""Fenotipado con cualquier cohorte de descubrimiento (notebook 04: POSTCOVID-Lleida).
+"""Fenotipado a partir de un perfil de `config.yaml` (notebook 04: las tres cohortes juntas).
 
 Generaliza la construcción de variables del notebook 03 a un PERFIL leído de `config.yaml`
-(p. ej., `fenotipado_lleida`): dominios y variables de definición, cohortes de réplica, ancla,
+(p. ej., `fenotipado_comun`): dominios y variables de definición, cohortes de réplica, ancla,
 desenlaces y rangos. Distancia, PAM, prueba nula y estabilidad se reutilizan de `src/fenotipado.py`
 sin modificarlo (el notebook 03 sigue usando ese módulo tal cual).
 
