@@ -14,3 +14,4 @@ ipykernel
 pyarrow
 pytest
 kmedoids          # PAM (FasterPAM); Gower implementada en src/fenotipado.py
+interpret-core              # EBM (notebook 06)

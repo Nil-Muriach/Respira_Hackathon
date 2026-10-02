@@ -470,3 +470,91 @@ fenotipado_comun:
   predictores_alta:                      # comunes a las tres cohortes (para el modelo futuro; aquí solo se preparan)
     [grupo_edad, sexo, estancia_hosp_dias, nu_ingreso_uci, nu_hta, nu_diabetes, nu_card_cronica, nu_epoc,
      nu_renal_cronica, nu_tabaquismo]
+
+# ---------------------------------------------------------------------------
+# Modelo predictivo (notebook 06): EBM que predice el fenotipo funcional H3 (notebook 05) desde los datos al alta
+modelo_h3:
+  base: base_modelo.parquet              # en rutas.procesados (generada por el notebook 05)
+  diana: fenotipo_H3
+  clase_positiva: F2                     # F2 = afectación funcional; F1 = función conservada
+  predictores:
+    continuas: [edad, estancia_hosp_dias]          # edad = punto medio del tramo de edad
+    binarias: [sexo, nu_ingreso_uci, nu_hta, nu_diabetes, nu_card_cronica, nu_epoc, nu_renal_cronica]
+    categoricas: [nu_tabaquismo]                    # 0 nunca, 1 activo, 2 exfumador
+  test_size: 0.2                         # partición 80/20 estratificada por diana y cohorte
+  ebm:                                   # ExplainableBoostingClassifier (interpret)
+    interactions: 5
+    outer_bags: 14
+    learning_rate: 0.01
+    max_rounds: 5000
+  n_bootstrap_ic: 1000                   # IC 95 % de las métricas en test
+  n_bins_calibracion: 8
+
+# ---------------------------------------------------------------------------
+# Red neuronal (notebook 07): misma diana, predictores y partición que el notebook 06 (modelo_h3)
+modelo_red:
+  busqueda:                              # GridSearchCV en train (5 pliegues, ROC-AUC)
+    hidden_layer_sizes: [[8], [16], [32], [16, 8], [32, 16], [64, 32]]
+    alpha: [0.0001, 0.001, 0.01, 0.1, 1.0]   # regularización L2
+    learning_rate_init: [0.001, 0.01]
+  pliegues_cv: 5
+  max_iter: 2000
+  early_stopping: true
+  validation_fraction: 0.15
+  n_semillas_ensamble: 10                # media de 10 redes con distintas semillas (reduce la varianza)
+  n_repeticiones_permutacion: 30
+
+# ---------------------------------------------------------------------------
+# Modelo CIBERESUCICOVID (notebook 08): EBM multiclase que predice el fenotipo sintomático H3 del notebook 03
+# (F1 resolución completa / F2 persistente con fatiga / F3 persistente sin fatiga) con datos del alta + fase aguda
+modelo_ciberes:
+  fenotipos: fenotipos.parquet           # en rutas.procesados (notebook 03): horizonte H3, tipo descubrimiento
+  horizonte: H3
+  nombres_clase: {F1: "Resolución completa", F2: "Persistente con fatiga", F3: "Persistente sin fatiga"}
+  predictores_alta:                      # los mismos 10 del notebook 06 (tabla pacientes)
+    continuas: [edad, estancia_hosp_dias]
+    binarias: [sexo, nu_ingreso_uci, nu_hta, nu_diabetes, nu_card_cronica, nu_epoc, nu_renal_cronica]
+    categoricas: [nu_tabaquismo]
+  predictores_agudos:                    # tabla completa de CIBERESUCICOVID; código 2 = "se desconoce" -> NaN
+    binarias:                            # durante el ingreso (AH_ = formulario de alta hospitalaria)
+      AH_invasive_proccur: "Ventilación mecánica invasiva"
+      AH_noninvasive_proccur: "Ventilación no invasiva"
+      AH_pronevent_prtrt: "Prono"
+      AH_extracorp_prdur: "ECMO"
+      AH_corticost_cmyn: "Corticoides"
+      AH_inotrop_cmtrt: "Vasopresores/inotropos"
+    continuas:                           # [etiqueta, mínimo plausible, máximo plausible]; fuera de rango -> NaN
+      AH_hodur: ["Días en UCI", 0, 200]
+      AH_invasive_prdur: ["Días de VMI", 0, 200]
+      IU_APACHE: ["APACHE II (ingreso UCI)", 0, 71]
+      IU_SOFA: ["SOFA (ingreso UCI)", 0, 24]
+      IU_PAFI: ["PaO2/FiO2 (ingreso UCI)", 30, 600]
+      IU_lymphocyte: ["Linfocitos (×10³/µL)", 0, 10]
+      IU_ddimer_log: ["Dímero D (log10)", 1, 6]
+      IU_ldh: ["LDH (U/L)", 50, 5000]
+      IU_ferritin_log: ["Ferritina (log10)", 0.5, 5.5]
+      IU_creatinine: ["Creatinina (mg/dL)", 0.1, 15]
+      IU_crp: ["PCR (mg/L)", 0, 600]
+      IU_procalcitonin: ["Procalcitonina (ng/mL)", 0, 200]
+      IU_platelet: ["Plaquetas (×10³/µL)", 10, 1000]
+      IU_wbc: ["Leucocitos (×10³/µL)", 0.1, 100]
+  codigo_desconocido_agudo: 2
+  test_size: 0.2
+  ebm: {interactions: 5, outer_bags: 14, learning_rate: 0.01, max_rounds: 5000}
+  pliegues_centro: 5                     # validación agrupada por centro (centros no vistos)
+  n_bootstrap_ic: 1000
+  n_bins_calibracion: 6
+
+# ---------------------------------------------------------------------------
+# Modelo CIBERESUCICOVID con dianas funcionales (notebook 09): mismos predictores y limpieza que modelo_ciberes
+modelo_ciberes_funcional:
+  base: base_modelo.parquet              # notebook 05: fenotipo_H3 y y_dlco
+  dianas:                                # [clave, columna, clase positiva, descripción]
+    - [fenotipo_h3, fenotipo_H3, F2, "Fenotipo funcional a 3 meses: afectación funcional (F2) frente a función conservada (F1)"]
+    - [dlco_12m, y_dlco, 1, "DLCO < 80 % del predicho a 12 meses"]
+  funcion_3m: [dlco, fvc, fev1]          # solo como predictor extra de la diana DLCO 12 m (variante «+ función a 3 m»)
+  test_size: 0.2
+  ebm: {interactions: 5, outer_bags: 14, learning_rate: 0.01, max_rounds: 5000}
+  pliegues_centro: 5
+  n_bootstrap_ic: 1000
+  n_bins_calibracion: 8
