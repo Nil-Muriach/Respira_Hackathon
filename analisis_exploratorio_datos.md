@@ -8,10 +8,10 @@
 ## 1. Estructura de ficheros
 
 | Fichero | Tamaño | Descripción |
-|---|---|---|
+| --- | --- | --- |
 | `cohorte_unificada_nucleo.csv` | 1.8 MB | **9.809 × 39** — 24 vars armonizadas + trazabilidad. **Punto de entrada.** |
 | `cohorte_unificada.csv` | 67 MB | **9.809 × 4.956** — Tabla completa con todas las visitas. Solo usar cuando se sepa qué columnas se necesitan. |
-| `diccionario_variables_reto2.xlsx` | 370 KB | 5 hojas: Léeme, Núcleo, Todas las variables (4.955 filas), Cobertura por dominio, Visitas. |
+| `diccionario_variables_reto2.xlsx` | ◊370 KB | 5 hojas: Léeme, Núcleo, Todas las variables (4.955 filas), Cobertura por dominio, Visitas. |
 
 ---
 
@@ -22,7 +22,7 @@ Total pacientes únicos: 9.809
 ```
 
 | Registro | N en registro | N como fila principal | Procedencia |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | CIBERESUCICOVID | 9.274 | 9.274 | + 459 solapan con Lleida/VdR |
 | POSTCOVID-Lleida | 624 | 187 (377 → CIBERES) | 437 fusionados en CIBERES, 187 solo-Lleida |
 | TENACITY | 287 | 287 | Sin solapamiento |
@@ -38,7 +38,7 @@ Total pacientes únicos: 9.809
 ### 3.1 Bloques temáticos
 
 | Bloque | Variables | Cobertura |
-|---|---|---|
+| --- | --- | --- |
 | **Trazabilidad** | `subject_id`, `cohorte`, `origen`, `centro_id`, `provincia_id`, banderas `en_*`, `fusionada_lleida`, `enriquecida_vrocio` | 100% |
 | **Sociodemografía** | `sexo`, `edad_tramo5` | ~94–95% |
 | **Fase aguda** | `estancia_hosp_dias`, `nu_ingreso_uci`, `nu_sdra`, `nu_iot`, `nu_traqueo`, `nu_exitus_hosp` | Variable (ver §4) |
@@ -50,7 +50,7 @@ Total pacientes únicos: 9.809
 ### 3.2 Demografía
 
 | Variable | Detalle |
-|---|---|
+| --- | --- |
 | **Sexo** (0=H, 1=M) | H: 70.3%, M: 29.7%, Missing: 5.6% |
 | **Edad tramo5** | Pico en 60–74 años. Tramos heterogéneos (mezcla de rangos entre registros) |
 | **Tabaquismo** | No: 56.1%, Ex-fumador (2): 29.4%, Sí (1): 6.8%, Missing (9): 7.6% |
@@ -58,7 +58,7 @@ Total pacientes únicos: 9.809
 ### 3.3 Gravedad del episodio agudo
 
 | Variable | Prevalencia | Missing |
-|---|---|---|
+| --- | --- | --- |
 | Ingreso UCI | **88.5%** (de los que tienen dato) | 0% |
 | SDRA | 96.9% (de los que tienen dato) | 92.9% — ⚠️ casi solo TENACITY lo recoge |
 | IOT | 47.6% (de los que tienen dato) | **99.2%** — prácticamente inutilizable en nucleo |
@@ -104,7 +104,7 @@ Buena cobertura (< 15%):
 La DLCO es el **eje central** del análisis de trayectorias según el Planning_Inicial.
 
 | Estadístico | Valor |
-|---|---|
+| --- | --- |
 | N con medida | 1.681 pacientes (17.1% del total) |
 | Mediana | 71.2% |
 | Media | 72.0% |
@@ -115,7 +115,7 @@ La DLCO es el **eje central** del análisis de trayectorias según el Planning_I
 ### DLCO por cohorte
 
 | Cohorte | N | Mediana DLCO |
-|---|---|---|
+| --- | --- | --- |
 | CIBERESUCICOVID | 1.289 | 71.0% |
 | POSTCOVID-Lleida | 176 | 68.7% |
 | TENACITY | 177 | **80.0%** |
@@ -128,7 +128,7 @@ La DLCO es el **eje central** del análisis de trayectorias según el Planning_I
 ## 6. Estructura temporal — visitas por registro
 
 | Registro | Visita | Momento nominal | N con datos | % del registro | N con función resp. |
-|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- |
 | CIBERESUCICOVID | M3_ | 3m | 3.744 | 40.4% | 1.226 |
 | CIBERESUCICOVID | M6_ | 6m | 3.364 | 36.3% | 1.177 |
 | CIBERESUCICOVID | A1_ | 12m | 3.303 | 35.6% | 773 |
@@ -151,7 +151,7 @@ La DLCO es el **eje central** del análisis de trayectorias según el Planning_I
 ### Prefijos de columnas en la tabla completa (4.956 columnas)
 
 | Prefijo | N cols | Corresponde a |
-|---|---|---|
+| --- | --- | --- |
 | `AH_` | 418 | Alta hospitalaria |
 | `M3_` | 416 | Visita 3 meses (CIBERES + TENACITY) |
 | `M6_` | 413 | Visita 6 meses |
@@ -173,7 +173,7 @@ La DLCO es el **eje central** del análisis de trayectorias según el Planning_I
 ## 7. Dominios clínicos en la tabla completa
 
 | Dominio | N variables |
-|---|---|
+| --- | --- |
 | Analítica | 596 |
 | Sueño (cuestionarios) | 479 |
 | Gravedad episodio agudo | 462 |
@@ -189,6 +189,7 @@ La DLCO es el **eje central** del análisis de trayectorias según el Planning_I
 | Prueba de esfuerzo (PM6M) | 31 |
 
 > **Cobertura por capa de análisis**:
+>
 > - **Capa A (respiratoria)**: Función respiratoria + Imagen torácica → presente en las 4 cohortes
 > - **Capa B (multidominio)**: HADS, Calidad de vida, Cognición, Sueño → **solo Lleida y TENACITY**
 
@@ -197,7 +198,7 @@ La DLCO es el **eje central** del análisis de trayectorias según el Planning_I
 ## 8. Comorbilidades basales
 
 | Comorbilidad | Sí | No | Missing |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | HTA | 49.7% | 50.3% | 9.2% |
 | Diabetes | 24.4% | 75.6% | 9.3% |
 | Cardiopatía crónica | 13.7% | 86.3% | **25.9%** |
@@ -213,7 +214,7 @@ La DLCO es el **eje central** del análisis de trayectorias según el Planning_I
 ## 9. Eje temporal (visita_dias)
 
 | Estadístico | Valor |
-|---|---|
+| --- | --- |
 | N con visita_dias | 2.753 |
 | Rango | -334 a 807 días |
 | **Negativos (posibles errores)** | **54 registros** ← revisar antes de modelar |
@@ -226,20 +227,23 @@ La DLCO es el **eje central** del análisis de trayectorias según el Planning_I
 ## 10. Alertas y decisiones para el notebook
 
 ### 🔴 Críticas (bloquean el análisis)
+
 1. **54 valores negativos en `visita_dias`** → definir criterio de exclusión en `config.yaml`
 2. **Nu_iot 99.2% missing en nucleo** → no incluir en clustering; consultar en tabla completa solo para descriptivo
 3. **Fusionados Lleida** (437) → excluir de uno de los lados en validación cruzada
 
 ### 🟡 Importantes (afectan la validez)
+
 4. **DLCO solo disponible en 17% del total** → el análisis de trayectorias es sobre subconjunto con seguimiento
-5. **Abandono informativo** → quien no vuelve al año tenía DLCO más alta (73.4% vs 65.2% según planning). Implementar IPW.
-6. **Tramos de edad heterogéneos** entre registros → considerar reagrupar (< 50, 50–64, 65–74, ≥ 75)
-7. **Tabaquismo**: código `9` = desconocido (7.6%), no es `NaN` → manejar correctamente
+2. **Abandono informativo** → quien no vuelve al año tenía DLCO más alta (73.4% vs 65.2% según planning). Implementar IPW.
+3. **Tramos de edad heterogéneos** entre registros → considerar reagrupar (< 50, 50–64, 65–74, ≥ 75)
+4. **Tabaquismo**: código `9` = desconocido (7.6%), no es `NaN` → manejar correctamente
 
 ### 🟢 Confirmadas / correctas
+
 8. **Capa A** puede descubrirse en CIBERESUCICOVID y replicarse en Lleida+TENACITY
-9. **Capa B** debe descubrirse en Lleida y replicarse en TENACITY (con mucho cuidado por N=287)
-10. **Virgen del Rocío**: solo visita al mes → uso complementario, no trayectorias
+2. **Capa B** debe descubrirse en Lleida y replicarse en TENACITY (con mucho cuidado por N=287)
+3. **Virgen del Rocío**: solo visita al mes → uso complementario, no trayectorias
 
 ---
 

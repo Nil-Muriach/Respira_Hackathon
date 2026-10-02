@@ -14,3 +14,9 @@
   - Fer un estudi longitudinal als 3 mesos, 6 mesos i 12 mesos en el dataset gran, intentant prevenir (predir com evoluciona) i validar-ho amb la evolució del dataset del POST-Lleida, i quina de les tres opcions es la millor a nivell de predicció, mirar a nivell de factors per a que com abans ho pugui prevenir bé, millor.
 
 - Hem de fer 3 clusterings differnts principals, dels 3, 6 i 12 mesos
+
+-----
+Dubtes:
+
+- Que son les capes, en que ho separa? La capa A i la capa B
+- Que es DLCO?
