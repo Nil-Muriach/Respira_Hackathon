@@ -51,3 +51,83 @@ Una decisión metodológica fundamental fue distinguir entre dos tipos de ausenc
 Para el clustering, se tomó la **primera medida válida de cada paciente entre 60 y 210 días desde el alta**. Esta ventana fue la elegida porque es el período en que todos los registros con seguimiento tienen datos disponibles, permitiendo comparaciones válidas entre cohortes. Fuera de esta ventana, los registros no son comparables entre sí (Virgen del Rocío mide casi todo a las 6 semanas; Lleida tiene visitas hasta los 4 años, pero el resto no llega al año con datos suficientes).
 
 Sobre estas medidas se aplicaron umbrales clínicos establecidos, como DLCO < 80%, HADS ≥ 8 o mMRC ≥ 2, para convertir los valores numéricos en estados clínicos interpretables. Se optó por umbrales clínicos en lugar de normalización estadística por cohorte (z-scores), porque esta última habría borrado diferencias reales entre registros: un paciente con DLCO del 71% no debería tratarse igual que uno con 80% solo porque están en cohortes distintas.
+
+### Resultado de la limpieza: seis datasets estructurados
+
+Como resultado del proceso de limpieza y preparación, los datos brutos se transformaron en **seis datasets especializados**, cada uno con un propósito concreto dentro del análisis:
+
+| Dataset | Filas | Qué contiene | Para qué se usa |
+| --- | --- | --- | --- |
+| `pacientes` | 9.809 | Un paciente por fila, con todas las variables limpias y columnas derivadas (criterios de inclusión, grupo de edad, etc.) | Describir la población y aplicar los filtros de inclusión |
+| `medidas` | 27.504 | Una medida por fila (paciente × visita × variable), incluyendo las excluidas marcadas | Estudiar las trayectorias de cada variable a lo largo del tiempo |
+| `estado_definicion` | 9.809 | Un paciente por fila con su estado clínico en la ventana 60–210 días | **Tabla de entrada al clustering**: contiene si cada variable está alterada o no |
+| `visitas_tenacity` | 861 | Una visita prevista por fila para los 287 pacientes de TENACITY | Distinguir abandono real de "aún no le ha tocado la visita" |
+| `registro_limpieza` | 31 | Una regla de limpieza por fila, con cuántos pacientes afecta en cada registro | Trazabilidad y transparencia del proceso |
+| `flujo_consort` | 7 | Un paso del flujo de pacientes | Mostrar cuántos pacientes llegan a cada etapa del análisis |
+
+El flujo de pacientes a través de los filtros sucesivos fue el siguiente:
+
+| Paso | Pacientes que pasan |
+| --- | --- |
+| Pacientes únicos en el dataset original | 9.809 |
+| Supervivientes al alta hospitalaria | 7.576 |
+| Con calidad suficiente de datos (CMD ≥ 50% en CIBERESUCICOVID) | 5.071 |
+| Con alguna medida de seguimiento válida | 2.751 |
+| **Capa A** — con DLCO o FVC en la ventana 60–210 días | **2.114** |
+| **Capa B** — además con HADS o mMRC en esa ventana | **710** |
+
+Esto significa que, de los 9.809 pacientes originales, el clustering de la Capa A trabajó con 2.114 (el 21.6% del total), y el de la Capa B con 710 (el 7.2%). La reducción es importante pero esperada: solo tienen datos de seguimiento válidos los pacientes que acudieron a las revisiones.
+
+---
+
+## 3. Clustering: evolución del enfoque
+
+El diseño del clustering no fue lineal. A lo largo del proyecto exploramos diferentes aproximaciones antes de llegar a la solución final, aprendiendo algo relevante en cada paso.
+
+### 3.1 Primera aproximación: Capa A y Capa B separadas
+
+La primera idea fue organizar el clustering en dos capas diferenciadas según las variables disponibles. La **Capa A** trabajaría con variables respiratorias (DLCO y FVC), presentes en los cuatro registros, y descubriría los fenotipos en CIBERESUCICOVID para luego replicarlos en Lleida y TENACITY. La **Capa B** añadiría las variables de salud mental, calidad de vida y esfuerzo físico (HADS, mMRC, PM6M), que solo recogen Lleida y TENACITY, y descubriría sus fenotipos en Lleida para replicarlos en TENACITY.
+
+**Punto fuerte:** La separación en capas era coherente con la realidad de los datos: no se puede incluir variables que solo recogen dos registros cuando el objetivo es descubrir fenotipos en los cuatro. Cada capa usa exactamente las variables que puede usar.
+
+**Punto débil:** Al implementarlo vimos que la Capa A, con solo dos variables principales (DLCO y FVC), producía agrupaciones poco ricas —los grupos tendían a reflejar casi exclusivamente el nivel de DLCO, sin aportar mucha información adicional. La Capa B, por su parte, funcionaba con solo 710 pacientes, lo que limitaba la robustez estadística de los resultados.
+
+---
+
+### 3.2 Segunda aproximación: clustering solo con CIBERESUCICOVID
+
+Dado el peso numérico de CIBERESUCICOVID (más del 95% de los pacientes), exploramos hacer el clustering únicamente sobre este registro, aprovechando su gran tamaño para obtener grupos más estables estadísticamente, y después proyectar los fenotipos encontrados sobre los otros registros.
+
+**Punto fuerte:** Con 1.352 pacientes en la Capa A (frente a los ~160 de Lleida o los ~159 de TENACITY), el modelo tenía mucha más potencia estadística para encontrar grupos robustos. La estabilidad de los clústeres (medida por bootstrap) era significativamente mejor.
+
+**Punto débil:** CIBERESUCICOVID no recoge las variables de salud mental ni de esfuerzo físico (HADS, PM6M, mMRC). Los fenotipos resultantes eran puramente respiratorios y no capturaban la dimensión multidisciplinar de las secuelas, que es precisamente uno de los aspectos más relevantes clínicamente.
+
+---
+
+### 3.3 Tercera aproximación: clustering específico para Lleida
+
+Como alternativa, se planteó un clustering centrado en POSTCOVID-Lleida, el único registro con seguimiento largo (hasta 4 años) y con las variables de salud mental, calidad de vida, sueño y cognición. Esto permitiría un análisis verdaderamente multidimensional de las secuelas.
+
+**Punto fuerte:** Lleida ofrece la visión más completa del paciente post-infeccioso: no solo función pulmonar, sino también estado emocional, sueño, cognición y calidad de vida. Los fenotipos descubiertos aquí serían los más ricos clínicamente y los más útiles para la práctica asistencial.
+
+**Punto débil:** Lleida tiene 624 pacientes (556 en la Capa A), lo que es un tamaño razonable pero ajustado para clustering. Además, como cohorte de descubrimiento, deja solo TENACITY (287 pacientes) como cohorte de replicación, y ese tamaño es muy pequeño para validar resultados de forma robusta. El riesgo de sobreajuste al perfil específico de Lleida era real.
+
+---
+
+### 3.4 Aproximación final: clustering integrado con todos los datasets
+
+Finalmente, se optó por una estrategia que combinase las ventajas de las aproximaciones anteriores: descubrir los fenotipos en CIBERESUCICOVID (por su tamaño), validarlos en Lleida y TENACITY, y usar las variables multidominio de Lleida como variables de **descripción** de los fenotipos (no de definición). De esta forma, los grupos se definen con variables comunes a todos los registros, pero se describen con toda la riqueza disponible en cada cohorte.
+
+**Punto fuerte:** Combina el tamaño de CIBERESUCICOVID para el descubrimiento con la riqueza clínica de Lleida para la descripción. La replicación puede hacerse de forma rigurosa porque cada cohorte actúa en su rol adecuado.
+
+**Punto débil:** La complejidad del diseño es mayor. Hay que gestionar cuidadosamente qué variables entran en la definición del fenotipo y cuáles solo en la descripción, y la interpretación de los resultados requiere mantener claro en todo momento qué se ha medido dónde.
+
+---
+
+## 4. Resultados
+
+<!-- TODO equipo: completar con los resultados -->
+
+## 5. Conclusiones
+
+<!-- TODO equipo: completar con las conclusiones -->
