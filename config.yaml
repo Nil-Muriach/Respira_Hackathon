@@ -9,7 +9,7 @@ rutas:
   diccionario: "diccionario_variables_reto2.xlsx"
   figuras: "outputs/figuras"
   tablas: "outputs/tablas"
-  procesados: "datos_procesados"      # tablas limpias (ignorado por git: datos de pacientes)
+  procesados: "../Datos limpios"      # tablas limpias, fuera del repositorio (datos de pacientes)
 
 semilla: 2026
 
@@ -248,3 +248,48 @@ visitas_tenacity:                        # [visita, fecha_visita, perdida_seguim
   - [M3, M3_fecha_visita, M3_perdida_seg, 3]
   - [M6, M6_fecha_visita, M6_perdida_seg, 6]
   - [A1, A1_fecha_visita, A1_perdida_seg, 12]
+
+# ---------------------------------------------------------------------------
+# Fenotipado (notebook 03, src/fenotipado.py, src/pasaporte.py)
+fenotipado:
+  ventanas:                              # días reales desde el alta, sin solaparse
+    T3: [60, 135]
+    T6: [136, 270]
+    T12: [271, 480]
+  horizontes:                            # acumulado: cada horizonte usa sus ventanas y las anteriores
+    H3: [T3]
+    H6: [T3, T6]
+    H12: [T3, T6, T12]
+  capas:
+    A:
+      nombre: "Respiratoria"
+      dominios:                          # dominio -> variables (peso igual por dominio)
+        pulmon: [dlco, fvc]
+      ancla: [[dlco, fvc]]               # en la última ventana: al menos una de cada grupo
+      descubre: CIBERESUCICOVID
+      replica: [POSTCOVID_LLEIDA, TENACITY]
+    B:
+      nombre: "Multidominio"
+      dominios:
+        pulmon: [dlco, fvc]
+        animo: [hads_a, hads_d]
+        disnea: [mmrc]
+        esfuerzo: [pm6m]
+      ancla: [[dlco, fvc], [hads_a, hads_d, mmrc]]
+      descubre: POSTCOVID_LLEIDA
+      replica: [TENACITY]
+  rango_cambio:                          # rango para normalizar el cambio (último - primero) en Gower
+    dlco: [-40, 40]
+    fvc: [-40, 40]
+    hads_a: [-10, 10]
+    hads_d: [-10, 10]
+    mmrc: [-3, 3]
+    pm6m: [-200, 200]
+  k_rango: [2, 6]
+  k_comparacion: 3                       # k fijo para comparar horizontes (sensibilidad)
+  n_permutaciones: 100                   # prueba nula de la silueta
+  n_bootstrap: 200                       # estabilidad y IC de replicación
+  min_pacientes_centro: 50               # estabilidad entre centros (capa A, CIBERESUCICOVID)
+  variables_descripcion:                 # no entran en el clustering; solo describen
+    ingreso: [nu_ingreso_uci, nu_traqueo, nu_hta, nu_diabetes, nu_epoc, nu_card_cronica]
+    seguimiento: [fev1, hads_a, hads_d, mmrc, pm6m]
