@@ -2,7 +2,7 @@
 
 Identificamos fenotipos de las secuelas tras una infección respiratoria grave que **se mantienen al cambiar de cohorte**, describimos **cómo evolucionan** y estudiamos **cuándo se pueden predecir**. Datos: cuatro cohortes (CIBERESUCICOVID, POSTCOVID-Lleida, TENACITY y Virgen del Rocío), 9.809 pacientes únicos.
 
-**El notebook a presentar es [`main.ipynb`](main.ipynb).** Resume el proyecto de principio a fin. Los notebooks numerados desarrollan cada paso con más detalle.
+**El notebook a presentar es [`main.ipynb`](main.ipynb).** Resume el proyecto de principio a fin. Los notebooks numerados de [`Workflow/`](Workflow) desarrollan cada paso con más detalle.
 
 ## Resultados en tres frases
 
@@ -18,17 +18,17 @@ Identificamos fenotipos de las secuelas tras una infección respiratoria grave q
 ## Estructura
 
 ```
-├── main.ipynb                      ← notebook de la presentación (resumen ejecutable)
-├── 01_analisis_exploratorio.ipynb  ← qué datos hay, de quién, cuándo y con qué calidad
-├── 02_limpieza.ipynb               ← 14 reglas de limpieza, flujo de pacientes, tablas limpias
-├── 03_fenotipado_ciberes.ipynb     ← fenotipos en CIBERESUCICOVID (síntomas + función): no viajan
-├── 04_fenotipado_comun.ipynb       ← fenotipos con las 3 cohortes juntas: el fenotipo principal
-├── 05_trayectorias.ipynb           ← evolución de la DLCO por fenotipo (modelo mixto, abandono, transiciones)
-├── 06_modelo_alta.ipynb            ← ¿se predice el fenotipo con los datos del alta? (EBM, 3 cohortes)
-├── 07_modelo_fase_aguda.ipynb      ← ¿y añadiendo la fase aguda? (EBM, solo CIBERESUCICOVID)
-├── 08_modelo_primera_visita.ipynb  ← en la visita de 3 meses: ¿quién sigue alterado al año?
+├── main.ipynb                         ← notebook de la presentación (resumen ejecutable)
+├── Workflow/
+│   ├── 01_analisis_exploratorio.ipynb  ← qué datos hay, de quién, cuándo y con qué calidad
+│   ├── 02_limpieza.ipynb               ← 14 reglas de limpieza, flujo de pacientes, tablas limpias
+│   ├── 03_fenotipado_ciberes.ipynb     ← fenotipos en CIBERESUCICOVID (síntomas + función): no viajan
+│   ├── 04_fenotipado_comun.ipynb       ← fenotipos con las 3 cohortes juntas: el fenotipo principal
+│   ├── 05_trayectorias.ipynb           ← evolución de la DLCO por fenotipo (modelo mixto, abandono, transiciones)
+│   ├── 06_modelo_alta.ipynb            ← ¿se predice el fenotipo con los datos del alta? (EBM, 3 cohortes)
+│   ├── 07_modelo_fase_aguda.ipynb      ← ¿y añadiendo la fase aguda? (EBM, solo CIBERESUCICOVID)
+│   └── 08_modelo_primera_visita.ipynb  ← en la visita de 3 meses: ¿quién sigue alterado al año?
 ├── config.yaml                     ← todos los parámetros (umbrales, ventanas, k, semillas, rutas)
-├── requirements.txt
 ├── src/                            ← funciones reutilizables (con docstrings)
 │   ├── carga.py                    lectura de datos y tablas largas de seguimiento
 │   ├── limpieza.py                 reglas R01–R14 y registro de limpieza
@@ -36,16 +36,14 @@ Identificamos fenotipos de las secuelas tras una infección respiratoria grave q
 │   ├── fenotipado_perfil.py        fenotipado a partir de un perfil de config.yaml
 │   ├── pasaporte.py                replicación entre cohortes (húngaro, Jaccard, ARI)
 │   ├── trayectorias.py             modelos mixtos, contrastes, IPW
+│   ├── fichas.py                   tabla de diferencias entre fenotipos (SMD e interpretación)
 │   └── privacidad.py               supresión de celdas con N < 10
-├── tests/                          ← tests con datos sintéticos (pytest)
-├── outputs/figuras/                ← figuras; el prefijo es el número del notebook (main/ para el principal)
-├── outputs/tablas/                 ← tablas agregadas (no se versionan)
-└── docs/
-    ├── informe.md                  ← informe completo: métodos, resultados, limitaciones, preguntas del jurado
-    ├── registro_decisiones.md      ← cada regla de limpieza con su justificación (validación clínica del equipo)
-    ├── datos_limpios.md            ← qué contiene cada tabla limpia
-    └── declaracion_IA.md           ← uso de inteligencia artificial
+└
+├── informe.md                  ← informe completo: métodos, resultados, limitaciones, preguntas del jurado
+
 ```
+
+Al ejecutar, los notebooks crean `outputs/figuras/` y `outputs/tablas/` (solo agregados; `main/` para el notebook principal). No se versionan.
 
 ## Qué produce cada notebook
 
@@ -70,14 +68,14 @@ Los notebooks se ejecutan **en orden**. Cada uno lee lo que generan los anterior
    ```bash
    python -m venv .venv
    .venv\Scripts\activate          # Windows
-   pip install -r requirements.txt
+   pip install pandas numpy scipy scikit-learn statsmodels matplotlib seaborn plotly pyyaml openpyxl nbformat nbconvert ipykernel pyarrow kmedoids interpret-core
    ```
-3. **Ejecución:** abrir los notebooks en orden (01 → 08) y ejecutar todo, o directamente `main.ipynb`. Desde la terminal:
+   La lista comentada está al final, en *Requerimientos*.
+3. **Ejecución:** abrir los notebooks de `Workflow/` en orden (01 → 08) y ejecutar todo, o directamente `main.ipynb`. Funcionan tanto desde la raíz como desde `Workflow/`. Desde la terminal:
    ```bash
-   python -m nbconvert --to notebook --execute --inplace 01_analisis_exploratorio.ipynb
+   python -m nbconvert --to notebook --execute --inplace Workflow/01_analisis_exploratorio.ipynb
    ```
    Los clustering con permutaciones y bootstrap (notebooks 03, 04 y `main`) tardan varios minutos.
-4. **Tests:** `python -m pytest -q`.
 
 ## Principios
 
@@ -87,6 +85,29 @@ Los notebooks se ejecutan **en orden**. Cada uno lee lo que generan los anterior
   - es estable (bootstrap);
   - se reproduce en una cohorte que no se usó para descubrirlo;
   - evoluciona distinto;
+  - se reconoce con pocas variables;
   - tiene sentido clínico.
 - **Sin imputar la ausencia estructural:** lo que una cohorte no recoge nunca se inventa.
 - **Privacidad:** los datos están seudonimizados y no salen del entorno. Solo se muestran agregados, y las celdas con N < 10 se suprimen (`src/privacidad.py`).
+
+## Requerimientos
+
+```
+pandas
+numpy
+scipy
+scikit-learn
+statsmodels
+matplotlib
+seaborn
+plotly
+pyyaml
+openpyxl
+nbformat
+nbconvert
+ipykernel
+pyarrow
+kmedoids          # PAM (FasterPAM); Gower implementada en src/fenotipado.py
+interpret-core    # EBM (notebooks 06 y 07)
+```
+
