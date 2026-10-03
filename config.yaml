@@ -420,6 +420,47 @@ fenotipado_comun:
      nu_renal_cronica, nu_tabaquismo]
 
 # ---------------------------------------------------------------------------
+# Tabla de diferencias entre fenotipos (main, final de las secciones 2.1 y 2.2; src/fichas.py)
+fichas:
+  horizonte: H3                          # el único que pasa todas las pruebas en 2.2; en 2.1, el de mayor N
+  cortes_smd: [0.2, 0.5, 0.8]            # Cohen: pequeña / moderada / grande
+  etiquetas_smd: [despreciable, pequeña, moderada, grande]
+  p_min: 0.001                           # p ajustadas menores se muestran como «<0.001»
+  max_rasgos_retrato: 6                  # rasgos por fenotipo en el resumen (los de mayor SMD)
+  retrato_min: pequeña                   # en el resumen entran los rasgos con al menos esta diferencia frente al resto
+  edad_mayor: ["65-74", ">=75"]          # grupos de grupo_edad que cuentan como edad ≥ 65
+  codigo_mujer: 1                        # sexo: 1 = mujer (misma convención que las fichas de 03 y 04)
+  etiquetas:
+    dlco: DLCO
+    fvc: FVC
+    fev1: FEV1
+    pm6m: PM6M
+    mmrc: Disnea mMRC
+    hads_a: HADS-A (ansiedad)
+    hads_d: HADS-D (depresión)
+    fatiga: Fatiga
+    resolucion: Resolución incompleta
+    astenia: Astenia
+    fatiga_muscular: Fatiga muscular
+    reingreso: Reingreso
+    urgencias: Visita a urgencias
+    compl_cardiovascular: Complicación cardiovascular
+    compl_infecciosa: Complicación infecciosa
+    tac_normalizado: TAC normalizado
+    tac_infiltrados: TAC con infiltrados
+    tac_epid: TAC con patrón intersticial (EPID)
+    tractos_fibrosos: TAC con tractos fibrosos
+    fibrosis_estricta: TAC con lesiones fibróticas
+    fibrosis_amplia: TAC con lesiones fibróticas o reticulares
+    nu_ingreso_uci: Ingreso en UCI
+    nu_traqueo: Traqueostomía
+    nu_hta: Hipertensión
+    nu_diabetes: Diabetes
+    nu_epoc: EPOC
+    nu_card_cronica: Cardiopatía crónica
+    nu_renal_cronica: Enfermedad renal crónica
+
+# ---------------------------------------------------------------------------
 # Trayectorias (notebook 05): evolución de la DLCO según el fenotipo funcional H3 del notebook 04 (src/trayectorias.py)
 trayectorias:
   fenotipos: fenotipos_comun.parquet     # en rutas.procesados (notebook 04)

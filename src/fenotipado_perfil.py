@@ -46,6 +46,8 @@ def medidas_por_visita(medidas: pd.DataFrame, pf: dict, cohorte: str, variables:
     m = medidas[~medidas["excluida"] & (medidas["registro"].astype(str) == cohorte)
                 & medidas["variable"].isin(variables) & medidas["visita"].isin(mapa)].copy()
     m["visita_c"] = m["visita"].map(mapa)
+    if m.empty:                                   # la cohorte no recoge la variable: sin ventanas que comparar
+        return m
     lo = m["visita_c"].map(lambda t: vis[t]["ventana"][0])
     hi = m["visita_c"].map(lambda t: vis[t]["ventana"][1])
     return m[m["dias_alta"].isna() | m["dias_alta"].between(lo, hi)]
